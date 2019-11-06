@@ -933,13 +933,13 @@ void ProcessCollisionsOpenMP(int tid)
           {
             fptype diff = parSize - (pos.x - domainMin.x);
             if(diff > epsilon)
-                cell->a[ji].x += stiffnessCollisions*diff - damping*cell->v[ji].x;
+              cell->a[ji].x += stiffnessCollisions*diff - damping*cell->v[ji].x;
           }
           if(ix==(nx-1))
           {
             fptype diff = parSize - (domainMax.x - pos.x);
             if(diff > epsilon)
-                cell->a[ji].x -= stiffnessCollisions*diff + damping*cell->v[ji].x;
+              cell->a[ji].x -= stiffnessCollisions*diff + damping*cell->v[ji].x;
           }
           if(iy==0)
           {
@@ -1008,68 +1008,72 @@ void ProcessCollisions2OpenMP(int tid)
 		      {
             fptype diff = pos.x - domainMin.x;
 		        if(diff < Zero)
-			    {
-				cell->p[ji].x = domainMin.x - diff;
-				cell->v[ji].x = -cell->v[ji].x;
-				cell->hv[ji].x = -cell->hv[ji].x;
-			}
-		  }
-		  if(ix==(nx-1))
-		  {
+			      {
+				      cell->p[ji].x = domainMin.x - diff;
+				      cell->v[ji].x = -cell->v[ji].x;
+				      cell->hv[ji].x = -cell->hv[ji].x;
+			      }
+		      }
+          if(ix==(nx-1))
+          {
             fptype diff = domainMax.x - pos.x;
- 			if(diff < Zero)
-			{
-				cell->p[ji].x = domainMax.x + diff;
-				cell->v[ji].x = -cell->v[ji].x;
-				cell->hv[ji].x = -cell->hv[ji].x;
-			}
-		  }
-		  if(iy==0)
-		  {
-            fptype diff = pos.y - domainMin.y;
-		    if(diff < Zero)
-			{
-				cell->p[ji].y = domainMin.y - diff;
-				cell->v[ji].y = -cell->v[ji].y;
-				cell->hv[ji].y = -cell->hv[ji].y;
-			}
-		  }
-		  if(iy==(ny-1))
-		  {
-            fptype diff = domainMax.y - pos.y;
- 			if(diff < Zero)
-			{
-				cell->p[ji].y = domainMax.y + diff;
-				cell->v[ji].y = -cell->v[ji].y;
-				cell->hv[ji].y = -cell->hv[ji].y;
-			}
-		  }
-		  if(iz==0)
-		  {
-            fptype diff = pos.z - domainMin.z;
-		    if(diff < Zero)
-			{
-				cell->p[ji].z = domainMin.z - diff;
-				cell->v[ji].z = -cell->v[ji].z;
-				cell->hv[ji].z = -cell->hv[ji].z;
-			}
-		  }
-		  if(iz==(nz-1))
-		  {
-            fptype diff = domainMax.z - pos.z;
- 			if(diff < Zero)
-			{
-				cell->p[ji].z = domainMax.z + diff;
-				cell->v[ji].z = -cell->v[ji].z;
-				cell->hv[ji].z = -cell->hv[ji].z;
-			}
-		  }
-          //move pointer to next cell in list if end of array is reached
-          if(ji == PARTICLES_PER_CELL-1) {
-            cell = cell->next;
+            if(diff < Zero)
+            {
+              cell->p[ji].x = domainMax.x + diff;
+              cell->v[ji].x = -cell->v[ji].x;
+              cell->hv[ji].x = -cell->hv[ji].x;
+            }
           }
+          
+          if(iy==0)
+          {
+            fptype diff = pos.y - domainMin.y;
+            if(diff < Zero)
+            {
+              cell->p[ji].y = domainMin.y - diff;
+              cell->v[ji].y = -cell->v[ji].y;
+              cell->hv[ji].y = -cell->hv[ji].y;
+            }
+          }
+          
+          if(iy==(ny-1))
+          {
+            fptype diff = domainMax.y - pos.y;
+            if(diff < Zero)
+            {
+              cell->p[ji].y = domainMax.y + diff;
+              cell->v[ji].y = -cell->v[ji].y;
+              cell->hv[ji].y = -cell->hv[ji].y;
+            }
+          }
+          
+          if(iz==0)
+          {
+            fptype diff = pos.z - domainMin.z;
+            if(diff < Zero)
+            {
+              cell->p[ji].z = domainMin.z - diff;
+              cell->v[ji].z = -cell->v[ji].z;
+              cell->hv[ji].z = -cell->hv[ji].z;
+            }
+          }
+          
+          if(iz==(nz-1))
+          {
+            fptype diff = domainMax.z - pos.z;
+            if(diff < Zero)
+            {
+              cell->p[ji].z = domainMax.z + diff;
+              cell->v[ji].z = -cell->v[ji].z;
+              cell->hv[ji].z = -cell->hv[ji].z;
+            }
+          }
+          //move pointer to next cell in list if end of array is reached
+        if(ji == PARTICLES_PER_CELL-1) {
+            cell = cell->next;
         }
       }
+    }
 	}
   }
 }
@@ -1086,6 +1090,8 @@ void AdvanceParticlesOpenMP(int tid)
         int index = (iz*ny + iy)*nx + ix;
         Cell *cell = &cells[index];
         int np = cnumPars[index];
+
+        #pragma omp for 
         for(int j = 0; j < np; ++j)
         {
           Vec3 v_half = cell->hv[j % PARTICLES_PER_CELL] + cell->a[j % PARTICLES_PER_CELL]*timeStep;
