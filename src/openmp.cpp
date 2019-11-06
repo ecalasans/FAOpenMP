@@ -288,6 +288,8 @@ void InitSim(char const *fileName, unsigned int threadnum)
 
   // because cells and cells2 are not allocated via new
   // we construct them here
+  
+  #pragma omp for     // PARALELIZAR ALOCAÇÃO DE CÉLULAS
   for(int i=0; i<numCells; ++i)
   {
 	  new (&cells[i]) Cell;
@@ -453,12 +455,12 @@ void CleanUpSim()
   for(int i=0; i< numCells; ++i)
   {
     Cell& cell = cells[i];
-	while(cell.next)
-	{
-		Cell *temp = cell.next;
-		cell.next = temp->next;
-		cellpool_returncell(&pools[0], temp);
-	}
+    while(cell.next)
+    {
+      Cell *temp = cell.next;
+      cell.next = temp->next;
+      cellpool_returncell(&pools[0], temp);
+    }
   }
   // now return cell pools
   //NOTE: Cells from cell pools can migrate to different pools during the parallel phase.
@@ -501,13 +503,15 @@ void CleanUpSim()
 
 void ClearParticlesOpenMP(int tid)
 {
+  //PARALELIZAR LIMPEZA DE PARTÍCULAS
+  #pragma omp for default(none) private(iz, iy, iz, index) shared(cnumPars, cells, last_cells)
   for(int iz = grids[tid].sz; iz < grids[tid].ez; ++iz)
     for(int iy = grids[tid].sy; iy < grids[tid].ey; ++iy)
       for(int ix = grids[tid].sx; ix < grids[tid].ex; ++ix)
       {
         int index = (iz*ny + iy)*nx + ix;
         cnumPars[index] = 0;
-		cells[index].next = NULL;
+		    cells[index].next = NULL;
         last_cells[index] = &cells[index];
       }
 }
@@ -656,9 +660,11 @@ void InitDensitiesAndForcesOpenMP(int tid)
     for(int iy = grids[tid].sy; iy < grids[tid].ey; ++iy)
       for(int ix = grids[tid].sx; ix < grids[tid].ex; ++ix)
       {
-                    int index = (iz*ny + iy)*nx + ix;
+        int index = (iz*ny + iy)*nx + ix;
         Cell *cell = &cells[index];
         int np = cnumPars[index];
+
+        #pragma omp for
         for(int j = 0; j < np; ++j)
         {
           cell->density[j % PARTICLES_PER_CELL] = 0.0;
@@ -689,6 +695,8 @@ void ComputeDensitiesOpenMP(int tid)
         int numNeighCells = InitNeighCellList(ix, iy, iz, neighCells);
 
         Cell *cell = &cells[index];
+
+        #pragma omp for
         for(int ipar = 0; ipar < np; ++ipar)
         {
           for(int inc = 0; inc < numNeighCells; ++inc)
@@ -696,6 +704,7 @@ void ComputeDensitiesOpenMP(int tid)
             int indexNeigh = neighCells[inc];
             Cell *neigh = &cells[indexNeigh];
             int numNeighPars = cnumPars[indexNeigh];
+
             for(int iparNeigh = 0; iparNeigh < numNeighPars; ++iparNeigh)
             {
               //Check address to make sure densities are computed only once per pair
@@ -752,6 +761,8 @@ void ComputeDensities2OpenMP(int tid)
         int index = (iz*ny + iy)*nx + ix;
         Cell *cell = &cells[index];
         int np = cnumPars[index];
+
+        #pragma omp for
         for(int j = 0; j < np; ++j)
         {
           cell->density[j % PARTICLES_PER_CELL] += tc;
@@ -782,6 +793,8 @@ void ComputeForcesOpenMP(int tid)
         int numNeighCells = InitNeighCellList(ix, iy, iz, neighCells);
 
         Cell *cell = &cells[index];
+
+        #pragma omp for
         for(int ipar = 0; ipar < np; ++ipar)
         {
           for(int inc = 0; inc < numNeighCells; ++inc)
@@ -909,47 +922,49 @@ void ProcessCollisionsOpenMP(int tid)
         int index = (iz*ny + iy)*nx + ix;
         Cell *cell = &cells[index];
         int np = cnumPars[index];
+
+        #pragma omp for shared(np)
         for(int j = 0; j < np; ++j)
         {
-		  int ji = j % PARTICLES_PER_CELL;
+		      int ji = j % PARTICLES_PER_CELL;
           Vec3 pos = cell->p[ji] + cell->hv[ji] * timeStep;
 
-		  if(ix==0)
-		  {
+          if(ix==0)
+          {
             fptype diff = parSize - (pos.x - domainMin.x);
-		    if(diff > epsilon)
-              cell->a[ji].x += stiffnessCollisions*diff - damping*cell->v[ji].x;
-		  }
-		  if(ix==(nx-1))
-		  {
+            if(diff > epsilon)
+                cell->a[ji].x += stiffnessCollisions*diff - damping*cell->v[ji].x;
+          }
+          if(ix==(nx-1))
+          {
             fptype diff = parSize - (domainMax.x - pos.x);
             if(diff > epsilon)
-              cell->a[ji].x -= stiffnessCollisions*diff + damping*cell->v[ji].x;
-		  }
-		  if(iy==0)
-		  {
+                cell->a[ji].x -= stiffnessCollisions*diff + damping*cell->v[ji].x;
+          }
+          if(iy==0)
+          {
             fptype diff = parSize - (pos.y - domainMin.y);
             if(diff > epsilon)
               cell->a[ji].y += stiffnessCollisions*diff - damping*cell->v[ji].y;
-		  }
-		  if(iy==(ny-1))
-		  {
+          }
+          if(iy==(ny-1))
+          {
             fptype diff = parSize - (domainMax.y - pos.y);
             if(diff > epsilon)
               cell->a[ji].y -= stiffnessCollisions*diff + damping*cell->v[ji].y;
-		  }
-		  if(iz==0)
-		  {
+          }
+          if(iz==0)
+          {
             fptype diff = parSize - (pos.z - domainMin.z);
             if(diff > epsilon)
               cell->a[ji].z += stiffnessCollisions*diff - damping*cell->v[ji].z;
-		  }
-		  if(iz==(nz-1))
-		  {
+          }
+          if(iz==(nz-1))
+          {
             fptype diff = parSize - (domainMax.z - pos.z);
             if(diff > epsilon)
               cell->a[ji].z -= stiffnessCollisions*diff + damping*cell->v[ji].z;
-		  }
+          }
           //move pointer to next cell in list if end of array is reached
           if(ji == PARTICLES_PER_CELL-1) {
             cell = cell->next;
@@ -982,16 +997,18 @@ void ProcessCollisions2OpenMP(int tid)
         int index = (iz*ny + iy)*nx + ix;
         Cell *cell = &cells[index];
         int np = cnumPars[index];
+
+        #pragma omp for 
         for(int j = 0; j < np; ++j)
         {
-		  int ji = j % PARTICLES_PER_CELL;
+		      int ji = j % PARTICLES_PER_CELL;
           Vec3 pos = cell->p[ji];
 
-		  if(ix==0)
-		  {
+		      if(ix==0)
+		      {
             fptype diff = pos.x - domainMin.x;
-		    if(diff < Zero)
-			{
+		        if(diff < Zero)
+			    {
 				cell->p[ji].x = domainMin.x - diff;
 				cell->v[ji].x = -cell->v[ji].x;
 				cell->hv[ji].x = -cell->hv[ji].x;
