@@ -287,7 +287,6 @@ void InitSim(char const *fileName, unsigned int threadnum)
 #endif
 
   // because cells and cells2 are not allocated via new
-  // we construct them here
   
   #pragma omp for     // PARALELIZAR ALOCAÇÃO DE CÉLULAS
   for(int i=0; i<numCells; ++i)
@@ -504,7 +503,7 @@ void CleanUpSim()
 void ClearParticlesOpenMP(int tid)
 {
   //PARALELIZAR LIMPEZA DE PARTÍCULAS
-  #pragma omp for default(none) private(iz, iy, iz, index) shared(cnumPars, cells, last_cells)
+  #pragma omp for 
   for(int iz = grids[tid].sz; iz < grids[tid].ez; ++iz)
     for(int iy = grids[tid].sy; iy < grids[tid].ey; ++iy)
       for(int ix = grids[tid].sx; ix < grids[tid].ex; ++ix)
@@ -923,7 +922,7 @@ void ProcessCollisionsOpenMP(int tid)
         Cell *cell = &cells[index];
         int np = cnumPars[index];
 
-        #pragma omp for shared(np)
+        #pragma omp for 
         for(int j = 0; j < np; ++j)
         {
 		      int ji = j % PARTICLES_PER_CELL;
@@ -1170,8 +1169,6 @@ void *AdvanceFramesOpenMP(int threadnum, int framenum)
     int tid = omp_get_thread_num();
     AdvanceFrameOpenMP(tid);
   }
-  
-  return NULL;
 }
 
 
