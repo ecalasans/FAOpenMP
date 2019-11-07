@@ -288,7 +288,6 @@ void InitSim(char const *fileName, unsigned int threadnum)
 
   // because cells and cells2 are not allocated via new
   
-  #pragma omp for     // PARALELIZAR ALOCAÇÃO DE CÉLULAS
   for(int i=0; i<numCells; ++i)
   {
 	  new (&cells[i]) Cell;
@@ -502,8 +501,6 @@ void CleanUpSim()
 
 void ClearParticlesOpenMP(int tid)
 {
-  //PARALELIZAR LIMPEZA DE PARTÍCULAS
-  #pragma omp for 
   for(int iz = grids[tid].sz; iz < grids[tid].ez; ++iz)
     for(int iy = grids[tid].sy; iy < grids[tid].ey; ++iy)
       for(int ix = grids[tid].sx; ix < grids[tid].ex; ++ix)
@@ -663,7 +660,6 @@ void InitDensitiesAndForcesOpenMP(int tid)
         Cell *cell = &cells[index];
         int np = cnumPars[index];
 
-        #pragma omp for
         for(int j = 0; j < np; ++j)
         {
           cell->density[j % PARTICLES_PER_CELL] = 0.0;
@@ -695,7 +691,6 @@ void ComputeDensitiesOpenMP(int tid)
 
         Cell *cell = &cells[index];
 
-        #pragma omp for
         for(int ipar = 0; ipar < np; ++ipar)
         {
           for(int inc = 0; inc < numNeighCells; ++inc)
@@ -761,7 +756,6 @@ void ComputeDensities2OpenMP(int tid)
         Cell *cell = &cells[index];
         int np = cnumPars[index];
 
-        #pragma omp for
         for(int j = 0; j < np; ++j)
         {
           cell->density[j % PARTICLES_PER_CELL] += tc;
@@ -793,7 +787,6 @@ void ComputeForcesOpenMP(int tid)
 
         Cell *cell = &cells[index];
 
-        #pragma omp for
         for(int ipar = 0; ipar < np; ++ipar)
         {
           for(int inc = 0; inc < numNeighCells; ++inc)
@@ -922,7 +915,6 @@ void ProcessCollisionsOpenMP(int tid)
         Cell *cell = &cells[index];
         int np = cnumPars[index];
 
-        #pragma omp for 
         for(int j = 0; j < np; ++j)
         {
 		      int ji = j % PARTICLES_PER_CELL;
@@ -997,7 +989,6 @@ void ProcessCollisions2OpenMP(int tid)
         Cell *cell = &cells[index];
         int np = cnumPars[index];
 
-        #pragma omp for 
         for(int j = 0; j < np; ++j)
         {
 		      int ji = j % PARTICLES_PER_CELL;
@@ -1090,7 +1081,6 @@ void AdvanceParticlesOpenMP(int tid)
         Cell *cell = &cells[index];
         int np = cnumPars[index];
 
-        #pragma omp for 
         for(int j = 0; j < np; ++j)
         {
           Vec3 v_half = cell->hv[j % PARTICLES_PER_CELL] + cell->a[j % PARTICLES_PER_CELL]*timeStep;
@@ -1127,37 +1117,37 @@ void AdvanceFrameOpenMP(int tid)
   // As diretivas barrier garantem que todas as threads passarão para a próxima etapa 
   // sincronizadas em suas tarefas fazendo com que o avanço do frame esteja coerente em 
   // seus dados.
-  #pragma omp barrier
+
     ClearParticlesOpenMP(tid);
 
-  #pragma omp barrier
+ 
     RebuildGridOpenMP(tid);
   
-  #pragma omp barrier
+
     InitDensitiesAndForcesOpenMP(tid);
 
-  #pragma omp barrier
+
     ComputeDensitiesOpenMP(tid);
 
-  #pragma omp barrier
+
     ComputeDensities2OpenMP(tid);
 
-  #pragma omp barrier
+
     ComputeForcesOpenMP(tid);
   
-  #pragma omp barrier
+
     ProcessCollisionsOpenMP(tid);
   
-  #pragma omp barrier
+
     AdvanceParticlesOpenMP(tid);
 
-  #pragma omp barrier
+
 #if defined(USE_ImpeneratableWall)
   // N.B. The integration of the position can place the particle
   // outside the domain. We now make a pass on the perimiter cells
   // to account for particle migration beyond domain.
   ProcessCollisions2OpenMP(tid);
-  #pragma omp barrier
+
 #endif
 }
 
@@ -1206,6 +1196,9 @@ int main(int argc, char *argv[])
     std::cerr << "<framenum> must at least be 1" << std::endl;
     return -1;
   }
+
+  std::cout << "Rodando com " << threadnum << " threads e " << framenum << " frames\n\n ";
+
 
 #ifdef ENABLE_CFL_CHECK
   std::cout << "WARNING: Check for Courant–Friedrichs–Lewy condition enabled. Do not use for performance measurements." << std::endl;

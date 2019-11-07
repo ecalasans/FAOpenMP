@@ -1,0 +1,5 @@
+#!/bin/zsh
+
+scp -P 4422 openmp.cpp ecdbarros@sc.npad.imd.ufrn.br:/home/ecdbarros/pcd/parsec-3.0/pkgs/apps/fluidanimate/src
+
+
