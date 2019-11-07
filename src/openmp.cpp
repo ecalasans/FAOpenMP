@@ -1110,44 +1110,45 @@ void AdvanceParticlesOpenMP(int tid)
 
 void AdvanceFrameOpenMP(int tid)
 {
- #pragma omp master // Este bloco de código só pode ser executado pela thread master
+  #pragma omp master// Este bloco de código só pode ser executado pela thread master
     std::swap(cells, cells2);
     std::swap(cnumPars, cnumPars2);
+ 
   
   // As diretivas barrier garantem que todas as threads passarão para a próxima etapa 
   // sincronizadas em suas tarefas fazendo com que o avanço do frame esteja coerente em 
   // seus dados.
-
+    #pragma omp barrier 
     ClearParticlesOpenMP(tid);
 
- 
+  #pragma omp barrier
     RebuildGridOpenMP(tid);
   
-
+  #pragma omp barrier
     InitDensitiesAndForcesOpenMP(tid);
 
-
+  #pragma omp barrier
     ComputeDensitiesOpenMP(tid);
 
-
+  #pragma omp barrier
     ComputeDensities2OpenMP(tid);
 
-
+  #pragma omp barrier
     ComputeForcesOpenMP(tid);
   
-
+  #pragma omp barrier
     ProcessCollisionsOpenMP(tid);
   
-
+  #pragma omp barrier
     AdvanceParticlesOpenMP(tid);
 
-
+#pragma omp barrier
 #if defined(USE_ImpeneratableWall)
   // N.B. The integration of the position can place the particle
   // outside the domain. We now make a pass on the perimiter cells
   // to account for particle migration beyond domain.
   ProcessCollisions2OpenMP(tid);
-
+  #pragma omp barrier
 #endif
 }
 
